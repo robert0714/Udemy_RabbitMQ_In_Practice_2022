@@ -1,0 +1,20 @@
+plugins {
+    id 'java'
+}
+
+group = 'rabbitmq-examples'
+version = '1.0-SNAPSHOT'
+
+java {
+//    sourceCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = 1.8
+}
+repositories {
+    mavenCentral()
+    maven { url 'https://repo.spring.io/milestone' }
+}
+dependencies {
+    testImplementation  group: 'junit', name: 'junit', version: '4.13.2'
+    implementation  group: 'com.rabbitmq', name: 'amqp-client', version: '5.20.0'
+    implementation  'org.json:json:20240205'
+}
