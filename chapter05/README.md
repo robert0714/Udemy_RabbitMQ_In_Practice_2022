@@ -569,3 +569,22 @@ flowchart LR
 * https://github.com/rabbitmq/rabbitmq-website/blob/main/src/components/Tutorials/T6DiagramFull.md
 * https://github.com/rabbitmq/rabbitmq-website/blob/main/tutorials/tutorial-six-java.md
 * https://www.rabbitmq.com/tutorials/tutorial-six-java
+* Sample usecases:
+  * Out of the box RPC implementation
+  * Distribute tasks among multiple clients (workers) - and wait for result
+* java sample code: 
+  * RPC Client (producer): [rabbitmq-example\src\main\java\rabbitmq\RPCExample.java](../rabbitmq-example//src/main/java/rabbitmq/RPCExample.java?plain=1#L37-L61)  
+  * RPC Server (consumer): [rabbitmq-example\src\main\java\rabbitmq\RPCExample.java](../rabbitmq-example//src/main/java/rabbitmq/RPCExample.java?plain=1#L111-L148)
+
+* RPC - Remote Procedure Call
+  * **RabbitMQ can be used a nice RPC wrapper**
+    * Any RPC implementation based on queues is fine, here we have an API out of the box
+  * **Single queue**
+    * Requests and responses goes through single queue; 
+    * both matched by **correlationId** property,
+    > CorrelationID is one of 14 messages properties defined in AMQP 0-9-1 protocol (like deliveryMode, replyTo, contentType etc.
+  * **General RPC good habits**
+    * Make a clear comment in the code that function call is local or remote,
+    * Keep up-to-date documentation about dependencies between components,
+    * Handle communication issues, i.e. when RPC server is down; 
+      * Scale-out RPC service by combining RPC pattern with Work Queues or more sophisticated exchanges like consistent hash, and so on
