@@ -61,9 +61,8 @@ flowchart LR
         "message":"Hello 1"
       }
       ```
-  * Get messages:
-    * Ack Mode: ``Automatic ack``
-    * Encoding: ``Auto string/base64``
+  * Get messages in ``Queue Tab``:   
+    To click
 * java sample code: [rabbitmq-example\src\main\java\rabbitmq\WorkQueueExample.java](../rabbitmq-example//src/main/java/rabbitmq/WorkQueueExample.java?plain=1#L53-L77)  
 * Summary:
   *  **Round-robin dispatching**    
@@ -128,7 +127,7 @@ flowchart LR
       {
           "message":"This is news about Sport"
       }     
-  * Get messages:
+  * Get messages in ``Queue Tab``: 
     * Ack Mode: ``Automatic ack``
     * Encoding: ``Auto string/base64``
 * java sample code: [rabbitmq-example\src\main\java\rabbitmq\PublishSubscribeExample.java](../rabbitmq-example//src/main/java/rabbitmq/PublishSubscribeExample.java?plain=1#L19)    
