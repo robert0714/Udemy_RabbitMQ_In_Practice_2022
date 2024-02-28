@@ -75,6 +75,7 @@ flowchart LR
      RabbitMQ dispatches a message when it enters the queue, here we want consumer to handle one message at time
 ## Patterns Publish  Subscribe (fanout) Hands On
 There are a few exchange types available: ``direct``, ``topic``, ``headers`` and ``fanout``. We'll focus on the last one:
+Exchange's type is fanout.
 ```mermaid
 flowchart LR
     P((Producer))
@@ -141,6 +142,7 @@ flowchart LR
   just broadcasts all the messages it receives to all the queues it knows - **ignores routing key** .
   We created non-durable, exclusive, autodelete queue with a generated name like: ``amq.gen-JzTY20BRgKO-HjmUJj0wLg``      
 ## Patterns Publish  Subscribe based on **Routing** Hands On
+Exchange's type is direct.
 ```mermaid
 flowchart LR
     P((Producer))
@@ -179,7 +181,7 @@ flowchart LR
       * Auto Delete: No
   * Exchange
       * Name:   ``ex.events``
-      * Type: ``default`` 
+      * Type: ``direct`` 
       * Durability: Durable
       * Auto Delete: No
       * Internal: No
@@ -222,6 +224,7 @@ flowchart LR
   * Many categories of messages cause lot of bindings - it complicates administration of RabbitMQ
 
 ## Patterns Publish  Subscribe based on **Topics** Hands On 
+Exchange's type is topic.
 ```mermaid
 flowchart LR
     P((Producer))
@@ -325,7 +328,7 @@ flowchart LR
         | event.sport.football   |   √       |     √     |
         | event.sport.today-news |   √       |     √     |
       * Test 1
-        * Routing key: `event.sport`` 
+        * Routing key: ``event.sport`` 
         * Payload
           ```json
           {
@@ -333,7 +336,7 @@ flowchart LR
           } 
           ```        
       * Test 2
-        * Routing key: `event.sport.football`` 
+        * Routing key: ``event.sport.football`` 
         * Payload
           ```json
           {
@@ -341,7 +344,7 @@ flowchart LR
           } 
           ```    
       * Test 3
-        * Routing key: `event.sport.football.barcelona`` 
+        * Routing key: ``event.sport.football.barcelona`` 
         * Payload
           ```json
           {
@@ -395,6 +398,151 @@ flowchart LR
 > **event.weather.south-east.london**
 
 ## Patterns Publish  Subscribe based on **Headers** Hands On
+Exchange's type is header.
+```mermaid
+flowchart LR
+    P((Producer))
+    X{{Exchanges}}
+    Q1[[Queue-1]]
+    Q2[[Queue-2]]
+    C1((Consumer-1))
+    C2((Consumer-2))
+    binding1["`x-match: any
+               severity: error
+               application: app2`"]
+    binding2["`x-match: all
+               severity: error
+               application: app2`"]   
+
+    P --> X --- binding1 --> Q1  
+    X --- binding2 --> Q2 
+    Q1 --> C1
+    Q2 --> C2
+
+    class P mermaid-producer
+    class X mermaid-exchange
+    class Q1 mermaid-queue
+    class Q2 mermaid-queue
+    class C1 mermaid-consumer
+    class C2 mermaid-consumer
+    class binding1 mermaid-binding
+    class binding2 mermaid-binding
+```
+* Sample usecases:
+  * Notifications based on header
+  * Feeds based on header
+    > headers beginning with the string **x-** are not used to evaluate matches
+* Exersise:    
+```mermaid
+flowchart LR
+    P((Backend service))
+    X{{Exchanges}}
+    Q1[[Queue-1]]
+    Q2[[Queue-2]]
+    C1((Consumer-1))
+    C2((Consumer-2))
+    binding1["`x-match: all
+               category: sport
+               source: bbc`"]
+    binding2["`x-match: any
+               category: sport
+               source: cnn`"] 
+
+    P --> X --- binding1 --> Q1  
+    X --- binding2 --> Q2 
+    Q1 --> C1
+    Q2 --> C2
+
+    class P mermaid-producer
+    class X mermaid-exchange
+    class Q1 mermaid-queue
+    class Q2 mermaid-queue
+    class C1 mermaid-consumer
+    class C2 mermaid-consumer
+    class binding1 mermaid-binding
+    class binding2 mermaid-binding
+```
+* java sample code: 
+  * producer: [rabbitmq-example\src\main\java\rabbitmq\HeadersExample.java](../rabbitmq-example//src/main/java/rabbitmq/HeadersExample.java?plain=1#L24-L34)  
+  * consumer: [rabbitmq-example\src\main\java\rabbitmq\HeadersExample.java](../rabbitmq-example//src/main/java/rabbitmq/HeadersExample.java?plain=1#L75-L93)
+
+* Video samples:
+  * Queue 
+      * Name:   ``q.events.client1``  , ``q.events.client2``
+      * Type: Classic
+      * Durability: Durable
+      * Auto Delete: No
+  * Exchange
+      * Name:   ``ex.events``
+      * Type: ``headers`` 
+      * Durability: Durable
+      * Auto Delete: No
+      * Internal: No 
+  > If binding is not configured, we will see the message "Message published but not routed".
+  * Bindings in Exchanges tab (``ex.events``)
+    * Binding1:
+       * To queue:   ``q.events.client1``  
+       * Routing key: 
+       * Arguments:
+         * x-match = all
+         * category = sport
+         * source = bbc
+    * Binding2:
+       * To queue:   ``q.events.client2``  
+       * Routing key: 
+       * Arguments:
+         * x-match = any
+         * category = sport
+         * source = cnn 
+  * Before Test, we have to clean queue by clicking  ``Purge Message`` button  in Queue tab.   
+  * Publish message   : 
+    * Select ``ex.events`` in ``Exchange Tab`` in order to publish message: 
+      * Test 1
+        * Routing key: 
+        * Headers:
+          * category = sport
+          * source = nytimes
+        * Payload
+          ```json
+          {
+            "message":"This is sport event"
+          } 
+          ```        
+      * Test 2
+        * Routing key: 
+        * Headers:
+          * category = sport
+          * source = bbc
+        * Payload
+          ```json
+          {
+            "message":"This is sport event from BBC"
+          } 
+          ```
+      * Test 3
+        * Routing key: 
+        * Headers:
+          * category = weather
+          * source = cnn
+        * Payload
+          ```json
+          {
+            "message":"Weather from CNN"
+          } 
+          ```               
+  * Get messages in ``Queue Tab``: 
+    * Ack Mode: ``Automatic ack``
+    * Encoding: ``Auto string/base64``  
+* Summary
+  * **Uses headers from AMQP message structure**   
+    Key -> value pairs
+  * **No substitutions**   
+    Header must exactly match to the list of headers defined in the binding
+  * **Ignores routing key**   
+    Like fanout exchange, headerds exchange ignores routing key
+  * **More flexible than direct exchange**   
+    But sometimes harder to maintain
+> headers beginning with the string **x-** are not used to evaluate matches
 
 ## Patterns RPC - Remote Procedure Call Hands On
 ```mermaid
