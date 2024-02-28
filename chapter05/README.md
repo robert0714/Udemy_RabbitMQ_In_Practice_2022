@@ -119,14 +119,20 @@ flowchart LR
       * Internal: No
   > If binding is not configured, we will see the message "Message published but not routed".
   * Bindings
-      * To queue:   ``q.events.client1``  , ``q.events.client2``
+    * Binding1:
+       * To queue:   ``q.events.client1``  
+       * Routing key: 
+    * Binding2:
+       * To queue:   ``q.events.client1``  
+       * Routing key: 
   * Publish message in ``Exchange Tab``: 
     * Delivery Mode: ``2-Persistent``
     * Payload
       ```json
       {
           "message":"This is news about Sport"
-      }     
+      }  
+      ```   
   * Get messages in ``Queue Tab``: 
     * Ack Mode: ``Automatic ack``
     * Encoding: ``Auto string/base64``
@@ -145,9 +151,9 @@ flowchart LR
     C2((Consumer-2))
 
     P --> X
-    X -- a --> Q1 & Q2
-    X -- b --> Q2
-    X -- c --> Q2
+    X -- rounting_key_1 --> Q1 & Q2
+    X -- rounting_key_2 --> Q2
+    X -- rounting_key_3 --> Q2
     Q1 --> C1
     Q2 --> C2
 
@@ -164,8 +170,58 @@ flowchart LR
 * Sample usecases:
   *  Notifications based on key
   *  Feeds based on key
-## Patterns Publish  Subscribe based on **Topics** Hands On
- 
+* java sample code: [rabbitmq-example\src\main\java\rabbitmq\RoutingExample.java](../rabbitmq-example//src/main/java/rabbitmq/RoutingExample.java?plain=1#L20-L25)     
+* Video samples:
+  * Queue 
+      * Name:   ``q.events.client1``  , ``q.events.client2``
+      * Type: Classic
+      * Durability: Durable
+      * Auto Delete: No
+  * Exchange
+      * Name:   ``ex.events``
+      * Type: ``default`` 
+      * Durability: Durable
+      * Auto Delete: No
+      * Internal: No
+  > If binding is not configured, we will see the message "Message published but not routed".
+  * Bindings in Exchanges tab (``ex.events``)
+    * Binding1:
+       * To queue:   ``q.events.client1``  
+       * Routing key: ``sport``
+    * Binding2:
+       * To queue:   ``q.events.client2``  
+       * Routing key: ``sport`` 
+    * Binding3:
+       * To queue:   ``q.events.client2``  
+       * Routing key: ``weather``
+  * Before Test, we have to clean queue by clicking  ``Purge Message`` button  in Queue tab.   
+  * Publish message   : 
+    * Select ``ex.events`` in ``Exchange Tab`` in order to publish message: 
+      * Test 1
+        * Routing key: ``sport`` 
+        * Payload
+          ```json
+          {
+            "message":"This is Sport event"
+          } 
+          ```
+      * Test 2
+        * Routing key: ``weather`` 
+        * Payload
+          ```json
+          {
+            "message":"This is an event about incoming weather"
+          } 
+          ```          
+  * Get messages in ``Queue Tab``: 
+    * Ack Mode: ``Automatic ack``
+    * Encoding: ``Auto string/base64``  
+* Summary
+  * Direct exchange routes to specific queue
+  * Routing key is matched with binding key to route **subset of messages** to bound queues
+  * Many categories of messages cause lot of bindings - it complicates administration of RabbitMQ
+
+## Patterns Publish  Subscribe based on **Topics** Hands On 
 ```mermaid
 flowchart LR
     P((Producer))
@@ -192,6 +248,152 @@ flowchart LR
 * https://github.com/rabbitmq/rabbitmq-website/blob/main/src/components/Tutorials/T5DiagramTopicX.md?plain=1
 * https://github.com/rabbitmq/rabbitmq-website/blob/main/tutorials/tutorial-five-java.md
 * https://www.rabbitmq.com/tutorials/tutorial-five-java
+* Sample usecases:
+  * Notifications based on topic 
+    > Topic is a kind of routing key defined as list of words, delimited by dots.
+  * Feeds based on topic
+    > Binding is a simple regular expression where:
+    > * ``* (star)`` can substitute exactly one word
+    > * ``# (hash)`` can substitute zero or more words
+* Exersise:
+```mermaid
+flowchart LR
+    P((Backend Service))
+    X{{Exchanges}}
+    Q1[[Queue-1]]
+    Q2[[Queue-2]]
+    C1((Consumer-1))
+    C2((Consumer-2))
+    Request["`events / messages
+    to clients
+    with topics`"]
+    Message["`event.sport.football
+    event.sport.football.fcbarcelona
+    event.sport
+    event.weather.local-alerts
+    event.weather.london`"]
+
+    P --- Request --> X
+    X -- *.sport.* --> Q1
+    X -- *.sport.# --> Q2
+    X -- *.weather.lodon.* --> Q2
+    Q1 --> C1
+    Q2 --> C2
+
+    class P mermaid-producer
+    class X mermaid-exchange
+    class Q1 mermaid-queue
+    class Q2 mermaid-queue
+    class C1 mermaid-consumer
+    class C2 mermaid-consumer
+    class Request mermaid-msg
+```
+* java sample code: 
+  * producer: [rabbitmq-example\src\main\java\rabbitmq\TopicsExample.java](../rabbitmq-example//src/main/java/rabbitmq/TopicsExample.java?plain=1#L21-L27)  
+  * consumer: [rabbitmq-example\src\main\java\rabbitmq\TopicsExample.java](../rabbitmq-example//src/main/java/rabbitmq/TopicsExample.java?plain=1#L55-L68)  
+
+* Video samples:
+  * Queue 
+      * Name:   ``q.events.client1``  , ``q.events.client2``
+      * Type: Classic
+      * Durability: Durable
+      * Auto Delete: No
+  * Exchange
+      * Name:   ``ex.events``
+      * Type: ``topic`` 
+      * Durability: Durable
+      * Auto Delete: No
+      * Internal: No 
+  > If binding is not configured, we will see the message "Message published but not routed".
+  * Bindings in Exchanges tab (``ex.events``)
+    * Binding1:
+       * To queue:   ``q.events.client1``  
+       * Routing key: ``*.sport.*``
+    * Binding2:
+       * To queue:   ``q.events.client2``  
+       * Routing key: ``*.sport.#``       
+    * Binding3:
+       * To queue:   ``q.events.client2``  
+       * Routing key: ``*.weather.london.*`` 
+  * Before Test, we have to clean queue by clicking  ``Purge Message`` button  in Queue tab.   
+  * Publish message   : 
+    * Select ``ex.events`` in ``Exchange Tab`` in order to publish message: 
+        | Routing key            | Client #1 | Client #2 |
+        |------------------------|-----------|-----------|
+        | event.sport            |   -       |     √     |
+        | event.sport.ruby.news  |   -       |     √     |
+        | event.sport.football   |   √       |     √     |
+        | event.sport.today-news |   √       |     √     |
+      * Test 1
+        * Routing key: `event.sport`` 
+        * Payload
+          ```json
+          {
+            "message":"Sport event"
+          } 
+          ```        
+      * Test 2
+        * Routing key: `event.sport.football`` 
+        * Payload
+          ```json
+          {
+            "message":"Football event"
+          } 
+          ```    
+      * Test 3
+        * Routing key: `event.sport.football.barcelona`` 
+        * Payload
+          ```json
+          {
+            "message":"This is event about Barcelona"
+          } 
+          ```    
+      * Test 4
+        * Routing key: ``event.weather.local-alerts`` 
+        * Payload
+          ```json
+          {
+            "message":"Local alert about the storm"
+          } 
+          ``` 
+      * Test 5
+        * Routing key: ``event.weather.london.local`` 
+        * Payload
+          ```json
+          {
+            "message":"Local weather in London"
+          } 
+          ``` 
+      * Test 6
+        * Routing key: ``event.weather.london.alerts`` 
+        * Payload
+          ```json
+          {
+            "message":"Local weather in London"
+          } 
+          ``` 
+      * Test 7
+        * Routing key: ``event.weather.london.london-city`` 
+        * Payload
+          ```json
+          {
+            "message":"Local weather in London"
+          } 
+          ```     
+  * Get messages in ``Queue Tab``: 
+    * Ack Mode: ``Automatic ack``
+    * Encoding: ``Auto string/base64``  
+* Summary
+  * **Topic limit is 255 characters**   
+    List of words, delimited by dots
+  * **No words limit**   
+    A word can be any string; should specify features hierarchy
+  * **Substitutions**   
+    * ``* (star)`` exactly one word
+    * ``# (hash)`` zero or more words
+> Define topic names wisely! - Topic must represent a hierarchy, i.e.:
+> **event.weather.south-east.london**
+
 ## Patterns Publish  Subscribe based on **Headers** Hands On
 
 ## Patterns RPC - Remote Procedure Call Hands On
