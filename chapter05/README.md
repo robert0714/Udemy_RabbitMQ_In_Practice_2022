@@ -126,9 +126,9 @@ flowchart LR
     C((Client))
     S((Server))
     Q1[[rpc_queue]]
-    Q2[[amq.gen-Xa2…]]
+    Q2[[amq.gen-Xa2]]
     Request["`Request
-    reply_to=amq.gen-Xa2…
+    reply_to=amq.gen-Xa2
     correlation_id=abc`"]
     Reply["`Reply
     correlation_id=abc`"]
