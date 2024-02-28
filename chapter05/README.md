@@ -28,8 +28,8 @@ flowchart LR
 flowchart LR
     P((Producer))
     Q[[Queue]]
-    C1((Consumer₁))
-    C2((Consumer₂))
+    C1((Consumer-1))
+    C2((Consumer-2))
 
     P --> Q ;
     Q --> C1 ;
@@ -50,8 +50,8 @@ There are a few exchange types available: ``direct``, ``topic``, ``headers`` and
 flowchart LR
     P((Producer))
     X{{Exchanges}}
-    Q1[[Queue₁]]
-    Q2[[Queue₂]]
+    Q1[[Queue-1]]
+    Q2[[Queue-2]]
 
     P --> X -- binding --> Q1 & Q2
 
@@ -68,10 +68,10 @@ flowchart LR
 flowchart LR
     P((Producer))
     X{{Exchanges}}
-    Q1[[Queue₁]]
-    Q2[[Queue₂]]
-    C1((Consumer₁))
-    C2((Consumer₂))
+    Q1[[Queue-1]]
+    Q2[[Queue-2]]
+    C1((Consumer-1))
+    C2((Consumer-2))
 
     P --> X
     X -- a --> Q1 & Q2
@@ -96,10 +96,10 @@ flowchart LR
 flowchart LR
     P((Producer))
     X{{Exchanges}}
-    Q1[[Queue₁]]
-    Q2[[Queue₂]]
-    C1((Consumer₁))
-    C2((Consumer₂))
+    Q1[[Queue-1]]
+    Q2[[Queue-2]]
+    C1((Consumer-1))
+    C2((Consumer-2))
 
     P --> X
     X -- *.orange.* --> Q1
