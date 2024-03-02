@@ -176,6 +176,125 @@ The exchange type is "x-consistent-hash".
        * Routing key:  ``2`` 
   * Re-Execute [rabbitmq-example\src\main\java\rabbitmq\ConsistentHashPublish.java](../rabbitmq-example//src/main/java/rabbitmq/ConsistentHashPublish.java?plain=1#L16-L36)             
 ## Dead Letter Exchange (DLX)
+* see https://rabbitmq-website.pages.dev/docs/dlx
+* Messages from the queue can be dead-lettered when:
+  * **Message is negatively (ack)nowledged**   
+    When Nack or Reject with requeue=false is called
+  * **TTL expired**   
+    When message expires due to per-message TTL,
+  * **Message is dropped**   
+    Queue exceeded length limit
+
+```bash
+> rabbitmqctl set_policy DLX ".*" "{""dead-letter-exchange"":""my-dlx""}" --apply-to queues
+```
+### Delay retry/schedule with DLX - Producer
+see [rabbitmq-example\src\main\java\rabbitmq\DeadLetterExample.java](../rabbitmq-example//src/main/java/rabbitmq/DeadLetterExample.java?plain=1#L47-L65)        
+### Delay retry/schedule with DLX - Consumer
+see [rabbitmq-example\src\main\java\rabbitmq\DeadLetterExample.java](../rabbitmq-example//src/main/java/rabbitmq/DeadLetterExample.java?plain=1#L81-L96)    
+### DLX example: Hands-On
+1. Create a DLX exchange
+2. Create a DLX queue
+3. Bind DLX exchange with DLX queue
+4. Create an exchange to be used by publisher
+5. Create queue with x-dead-letter-exchange attribute
+6. Bind them
+
+* Excerise 
+```mermaid
+flowchart LR
+    P((Producer))
+    X1{{Exchanges: 
+    ex.messages}}
+    X2{{Exchanges: 
+    ex.dlx.messages}}
+    Q1[[Queue-1: 
+    q.messages]]
+    Q2[[Queue-2: 
+    q.dlx.messages]]
+    C((Consumer))
+    Request["`routing_key = “”`"]
+    routingKey1["`x-dead-letter-exchange = ex.dlx.messages
+x-message-ttl = 20000
+`"]
+    routingKey2["`routing_key = “some-routing-key”`"]
+
+    P --- Request --> X1 --> Q1  -->C
+    Q1 --- routingKey1 --> X2 --- routingKey2 --> Q2 
+
+    class P mermaid-producer
+    class X1 mermaid-exchange
+    class X2 mermaid-exchange
+    class Q1 mermaid-queue
+    class Q2 mermaid-queue
+    class C mermaid-consumer
+    class Request mermaid-msg
+    class routingKey1 mermaid-msg
+    class routingKey2 mermaid-msg
+``` 
+* Video operations: 
+  * Queue2 
+      * Name:   ``q.dlx.messages``
+      * Type: Classic
+      * Durability: Durable
+      * Auto Delete: No
+  * Exchange2
+      * Name:   ``ex.dlx.messages``
+      * Type: ``direct`` 
+      * Durability: Durable
+      * Auto Delete: No
+      * Internal: No
+  > If binding is not configured, we will see the message "Message published but not routed".
+  * Bindings in the "Exchange" tab ``ex.dlx.messages``
+    * Binding1:
+       * To queue:   ``q.dlx.messages``
+       * Routing key: 
+  * Queue1 
+      * Name:   ``q.messages``
+      * Type: Classic
+      * Durability: Durable
+      * Auto Delete: No
+      * Arguments: 
+        * x-dead-letter-exchange = ex.dlx.messages  String
+        * x-message-ttl = 20000 Number
+  * Exchange1
+      * Name:   ``ex.messages``
+      * Type: ``direct`` 
+      * Durability: Durable
+      * Auto Delete: No
+      * Internal: No
+  * Bindings in the "Exchange" tab ``ex.messages``
+    * Binding2:
+       * To queue:   ``q.messages``
+       * Routing key:       
+  * Publish message in  ``ex.messages`` of ``Exchange Tab``: 
+    * 1st
+      * Routing key:  
+      * Payload:
+        ```text
+        Hello world
+        ```
+  * Waiting for 20 seconds to see the change of q.dlx.messages amount ( 0 -> 1 )
+  * Get messages in  ``q.dlx.messages`` of ``Queue Tab``: 
+    * Ack Mode: ``Nack message requeue true``
+    * Encoding: ``Auto string/base64``
+    * Messages: ``1``
+  * Get messages in  ``q.messages`` of ``Queue Tab``: 
+    * Ack Mode: ``Reject requeue false``
+    * Encoding: ``Auto string/base64``
+    * Messages: ``1``
+  * Publish message in  ``ex.messages`` of ``Exchange Tab``: 
+    * 2nd
+      * Routing key:  
+      * Payload:
+        ```text
+        Hello world 2
+        ```
+  * Waiting for 20 seconds to see the change of q.dlx.messages amount ( 1 -> 2 )
+  * Get messages in  ``q.dlx.messages`` of ``Queue Tab``: 
+    * Ack Mode: ``Nack message requeue true``
+    * Encoding: ``Auto string/base64``
+    * Messages: ``10``        
 ## Delay Schedule, Delay Publication Model.
 ## Data safety - Transactions & Publisher Confirms
 ## Vhosts
