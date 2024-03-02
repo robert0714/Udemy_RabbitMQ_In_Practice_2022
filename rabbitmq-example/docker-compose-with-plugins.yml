@@ -1,0 +1,19 @@
+version: '3' 
+services:
+  rabbitmq:
+    image: rabbitmq:3.12.13-custom
+    container_name: rabbitmq
+    build: enable-plugins 
+    restart: always
+    mem_limit: 350m
+    environment:
+      - TZ=Asia/Taipei
+    network_mode:  "host"  
+    #ports:
+    #  - 5672:5672
+    #  - 15672:15672
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 20s
+      timeout: 5s
+      retries: 10

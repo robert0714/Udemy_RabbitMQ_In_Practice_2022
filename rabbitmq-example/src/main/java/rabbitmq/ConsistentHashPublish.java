@@ -14,7 +14,9 @@ public class ConsistentHashPublish {
 
         public static void main(String[] argv) throws IOException, TimeoutException, InterruptedException {
             ConnectionFactory cf = new ConnectionFactory();
-            cf.setHost("127.0.0.1");
+            cf.setHost("localhost");
+            cf.setUsername("guest");
+            cf.setPassword("guest");
             cf.setPort(5672);
             Connection conn = cf.newConnection();
 

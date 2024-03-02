@@ -23,7 +23,7 @@ public class RPCExample {
             ConnectionFactory factory = new ConnectionFactory();
             factory.setHost("localhost");
             factory.setUsername("guest");
-            factory.setPassword("aaaaaa");
+            factory.setPassword("guest");
             m_connection = factory.newConnection();
             m_channel = m_connection.createChannel();
 
@@ -104,7 +104,7 @@ public class RPCExample {
             ConnectionFactory factory = new ConnectionFactory();
             factory.setHost("localhost");
             factory.setUsername("guest");
-            factory.setPassword("aaaaaa");
+            factory.setPassword("guest");
             try (Connection connection = factory.newConnection();
                  Channel channel = connection.createChannel())
             {
