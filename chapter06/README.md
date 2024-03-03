@@ -295,8 +295,152 @@ x-message-ttl = 20000
     * Ack Mode: ``Nack message requeue true``
     * Encoding: ``Auto string/base64``
     * Messages: ``10``        
+### Spring-boot
+* Error Handling with Spring AMQP: https://www.baeldung.com/spring-amqp-error-handling    
 ## Delay Schedule, Delay Publication Model.
+* When to use
+  * **No need or forbidden to consume messages immediately**   
+    Publish messages, but allow consumers to consume them after 3:00 PM Friday after conference press
+  * **Automatic retrying**   
+    Rejected message to be resend again in about 10 minutes
+  * **Delay and “batch” publication**   
+    Intentional latency increase between publisher and consumer or group messages into bigger batches
+  > Consider simple solutions over installing additional plugins like rabbitmq-delayed-message-exchange.    
+  > Such plugins store messages in mnesia table, which is not designed to store high volume of 
+the data
+```mermaid
+flowchart LR
+    P((Producer))
+    X1{{Exchanges: 
+    ex.messages}}
+    X2{{Exchanges: 
+    ex.dlx.messages}}
+    Q1[[Queue-1: 
+    q.messages]]
+    Q2[[Queue-2: 
+    q.dlx.messages]]
+    C((Consumer /
+    Investor))
+    Request["`x-message-ttl = 10800000`"]
+    routingKey1["` x-dead-letter-exchange = ex.dlx.messages `"]
+   
+
+    P --- Request --> X1 --> Q1 
+    Q1 --- routingKey1 --> X2  --> Q2  <--> C
+
+    class P mermaid-producer
+    class X1 mermaid-exchange
+    class X2 mermaid-exchange
+    class Q1 mermaid-queue
+    class Q2 mermaid-queue
+    class C mermaid-consumer
+    class Request mermaid-msg
+    class routingKey1 mermaid-msg
+``` 
+  * Publication at - 1:00 PM
+* Press conference starts - 3:00 PM
+* Press conference ends - 4:00 PM
+* TTL = 10 800 seconds
+### Delay retry/schedule with DLX - Retry consumer
+* see [rabbitmq-example\src\main\java\rabbitmq\DeadLetterExample.java](../rabbitmq-example//src/main/java/rabbitmq/DeadLetterExample.java?plain=1#L117-L132)  
+* see [rabbitmq-example\src\main\java\rabbitmq\CircularDeadLetterExample.java](../rabbitmq-example//src/main/java/rabbitmq/CircularDeadLetterExample.java?plain=1#L115-L126)  
+> RabbitMQ has no support for delayed/scheduled messages. Feature can be used when:
+>  - there is no need to read messages immediately,
+>  - message I read can't be processed or I want to requeue it and try again in about 10 minutes
+> - group messages into batches or reduce consumer’s load
+```bash
+-> Running producer
+[x] Sent 'Hello World 0'
+--> Running consumer for rejected messages
+[*] Waiting for rejected messages....
+[x] Sent 'Hello World 1'
+[x] Sent 'Hello World 2'
+[x] Sent 'Hello World 3'
+--> Running consumer
+[*] Waiting for messages....
+[x] Rejecting 'Hello World 0' with routingKey=
+[x] Rejecting 'Hello World 1' with routingKey=
+[x] Rejecting 'Hello World 2' with routingKey=
+[x] Rejecting 'Hello World 3' with routingKey=
+[x] Received rejected message: 'Hello World 0' with routingKey=some-routing-key (reason=rejected)
+[x] Received rejected message: 'Hello World 1' with routingKey=some-routing-key (reason=rejected)
+[x] Received rejected message: 'Hello World 2' with routingKey=some-routing-key (reason=rejected)
+[x] Received rejected message: 'Hello World 3' with routingKey=some-routing-key (reason=rejected)
+[x] Sent 'Hello World 4'
+[x] Rejecting 'Hello World 4' with routingKey=
+[x] Received rejected message: 'Hello World 4' with routingKey=some-routing-key (reason=rejected)
+--> Closing consumer
+--> Consumer closed
+[x] Sent 'Hello World 5'
+[x] Sent 'Hello World 6'
+[x] Received rejected message: 'Hello World 5' with routingKey=some-routing-key (reason=expired)
+[x] Received rejected message: 'Hello World 6' with routingKey=some-routing-key (reason=expired)
+```
 ## Data safety - Transactions & Publisher Confirms
+
+### Data safety
+* Acknowledgements on both consumer and publisher side are important for data safety
+    * **Consumer Acknowledgment**  → Defaults: Auto Ack
+      * One of **ACK**, **nACK** (RabbitMQ extension for Reject to reject multiple messages at once), 
+      * **Reject** (defined in AMQP protocol)  
+
+       | ACK             | - Positive acknowledgment                    | → remove message from the queue  |
+       |-----------------|----------------------------------------------|----------------------------------|
+       | nACK or Reject  | - Negative acknowledgment with requeue=true  | → keep message in the queue      |
+       | nACK or Reject  | - Negative acknowledgment with requeue=false | → remove message from the queue  |
+    * **Transactions (tx)** → Defaults: Disabled
+      * Safe batching feature (remember: batching Acks)
+    * **Publisher Confirms** → Defaults: Disabled
+      * Broker to send confirmation once message is safety stored (RabbitMQ feature)
+* see [rabbitmq-example\src\main\java\rabbitmq\TransactionsExample.java](../rabbitmq-example//src/main/java/rabbitmq/TransactionsExample.java?plain=1#L79-L90)  
+* see [rabbitmq-example\src\main\java\rabbitmq\TransactionsExample2.java](../rabbitmq-example//src/main/java/rabbitmq/TransactionsExample2.java?plain=1#L104-L119)  
+### Transactions
+> **Transactions decrease performance**. Overall throughput is decreased by factor close to 250. Consider “publisher confirms” or smart acknowledgments implementation .
+### Transactions (tx) - batch
+Transactions in RabbitMQ are closer to batching feature than ACID concept.
+* **txSelect**  
+  - set channel to use transactions. Method must be called at least once before calling txCommit or txRollback.
+* **txCommit/txRollback** 
+  - commits/rollbacks all message publications and (ack)nowledgments performed in current transaction
+* see [rabbitmq-example\src\main\java\rabbitmq\TransactionsExample.java](../rabbitmq-example//src/main/java/rabbitmq/TransactionsExample.java?plain=1#L57-L69)
+> **Transactions decrease performance**; consider “publisher confirms” or smart acknowledgments implementation.
+### Publisher Confirms
+see https://www.rabbitmq.com/docs/confirms
+
+Publisher confirms is a RabbitMQ extension to implement reliable publishing (not enabled by default). To make sure published messages have safely reached the broker.
+
+Both type of acknowledgments are essential for **data safety**
+
+> Better than transactions - transactions can decrease throughput **by hundreds of times**
+* see [rabbitmq-example\src\main\java\rabbitmq\TransactionsExample.java](../rabbitmq-example//src/main/java/rabbitmq/TransactionsExample.java?plain=1#L35-L49)
+> Ack is when all queues accepted the message and message is saved on the disk (persistent, durable mode)
+
+> Performance warning! Run example code and note:
+> * Published 50,000 messages in **1,768 ms**
+> * Published 50,000 messages in **14,218 ms**
+> * Published 50,000 messages in batch in **2,798 ms**
+> * Published 50,000 messages and handled confirms asynchronously in **1,786 ms**
+
+> Performance warning! Run example code and note:
+>
+> | (no confirms)            | Published 50,000 messages in 1,768 ms                                      |
+> |--------------------------|----------------------------------------------------------------------------|
+> | (confirms every message) | Published 50,000 messages in 14,218 ms                                     |
+> | (confirms in batch)      | Published 50,000 messages in batch in 2,798 ms   |
+> | (confirms in batch)      | Published 50,000 messages and handled confirms asynchronously in 1,786 ms |
+### Data safety - summary
+* To make sure your system is reliable and to avoid losing messages due to any unpredicted network issues
+  * **Durable queue, durable exchange and persistent messages**
+    * To survive accidental RabbitMQ restart or failure
+  * **Consumer to manually confirm** 
+    * Default mode is an automatic ACK
+  * **Transactions (tx)**
+    * Use transactions only when set of messages must be delivered as a package (all or nothing) and there is no way to send them as a single message (degraded overall throughput by factor of 250)
+  * **Publisher Confirms**
+    * Enable confirm mode and retry in case of nAck returned by RabbitMQ
+> **Publisher Confirms** - wait asynchronously on confirmations to don’t impact on throughput more than needed
+* see [rabbitmq-example\src\main\java\rabbitmq\PublisherConfirmsExample.java](../rabbitmq-example//src/main/java/rabbitmq/PublisherConfirmsExample.java?plain=1#L142-L149)
+
 ## Vhosts
 ## Policies
 ## Lazy queues - memory optimization
