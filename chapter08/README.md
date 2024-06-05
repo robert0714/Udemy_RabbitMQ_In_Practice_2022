@@ -1,10 +1,11 @@
 # 8. Performance testing
 ## Performance testing tools
 * jMeter
-  * Plugin is available here:
-https://github.com/jlavallee/JMeter-Rabbit-AMQP#build-dependencies
+  * Plugin is available here:   
+    https://github.com/jlavallee/JMeter-Rabbit-AMQP#build-dependencies
 * Benchmark testing with PerfTest
-  * Official RabbitMQ throughput testing tool:  https://github.com/rabbitmq/rabbitmq-perf-test
+  * Official RabbitMQ throughput testing tool:   
+    https://github.com/rabbitmq/rabbitmq-perf-test
 ## RabbitMQ PerfTest
 Download percompiled version of PerfTest    
 https://github.com/rabbitmq/rabbitmq-perf-test/releases/
@@ -69,15 +70,14 @@ Or
   ```
 *  **Simulate IoT workloads without requiring too many resources, especially threads**
    Share sockets and threads when not used. NIO stands for non-blocking I/O operations.
-
-  | parameters                 |                                       |
-  |----------------------------|---------------------------------------|
-| --nio-threads 10             | non-blocking IO enabled with pool of 0|
-| --producer-scheduler-threads 10  | by default on thread is used to simulate 50 producers. I declared 2000 producers, so **instead of 40, only 10 threads will be used**. Publishers publish 1 message/s, so we can limit it to 10 to save machine resources              |
-| --consumers-thread-pools 10  | by default pool of threads is equal to the number of consumers. I declared 2000 consumers, so **instead of 2000 threads, only 10 will be used** |
-| --heartbeat-sender-threads 10 | **separate thread is used** for every producer and every consumer **to send heartbeats**. Set limit to reasonable value when using lot of producers and consumers and avoid java.lang.OutOfMemoryError: unable to create new native thread |
-| --publishing-interval 1     | publish message every second    |
-| --producer-random-start-delay 60 | producers randomly start between 1s and 60s |
+    | parameters                 |                                       |
+    |----------------------------|---------------------------------------|
+    | --nio-threads 10             | non-blocking IO enabled with pool of 0|
+    | --producer-scheduler-threads 10  | by default on thread is used to simulate 50 producers. I declared 2000 producers, so **instead of 40, only 10 threads will be used**. Publishers publish 1 message/s, so we can limit it to 10 to save machine resources              |
+    | --consumers-thread-pools 10  | by default pool of threads is equal to the number of consumers. I declared 2000 consumers, so **instead of 2000 threads, only 10 will be used** |
+    | --heartbeat-sender-threads 10 | **separate thread is used** for every producer and every consumer **to send heartbeats**. Set limit to reasonable value when using lot of producers and consumers and avoid java.lang.OutOfMemoryError: unable to create new native thread |
+    | --publishing-interval 1     | publish message every second    |
+    | --producer-random-start-delay 60 | producers randomly start between 1s and 60s |
 
    ```bash
    > runjava com.rabbitmq.perf.PerfTest --time 120 --queue-pattern 'perf-test-%05d'
@@ -85,3 +85,38 @@ Or
    --producer-scheduler-threads 10 --consumers-thread-pools 10 --publishing-interval 1 --size 512
    --heartbeat-sender-threads 10 --flag persistent --producer-random-start-delay 60
    ```
+### PerfTest - Summary
+1. **Stability**   
+Cluster to survive in a function of growing load (Ramp-Up test), stable load (Flat Line test) or
+mixed (Flat Line with occasional high peaks)
+2. **Maximum throughput and minimum latency**   
+Realize limits of your cluster, define SLA, be prepared for scaling-out nodes when number of
+published messages is growing
+3. **Best optimal architecture**   
+Which plugin, how many exchanges, what type of exchanges, what type of the the Queue
+(Classic, Quorum, Stream), how many mirrors etc.
+4. **Best optimal publication and consumption parameters**   
+Frame size, batching, prefetch, transactions, publisher confirms etc.
+
+## HTML Performance tools
+Use HTML Performance Tools to visualize results:   
+https://github.com/rabbitmq/rabbitmq-perf-test/blob/master/html/README.md
+
+
+## HTML Performance tools
+* **Simple**  
+  4 producers, 2 consumers, 30s test: how time affect on message rate per second and latency
+  ```bash
+   > rabbitmq-perf-test-2.1.2\bin\runjava.bat com.rabbitmq.perf.PerfTestMulti various-spec.js
+     various-result.js
+  ```
+* **Batch test**
+  - 1 producer, 1 consumer, 30s no ACKs: how time affect on message rate per second and latency
+  - how number of producers affect message rate per second,
+  - rate message sizes: how message size affects the message rate per second,
+  - rate attempted vs latency: compare the sending rate of messages vs. the latency,
+  ```bash
+   > rabbitmq-perf-test-2.1.2\bin\runjava.bat com.rabbitmq.perf.PerfTestMulti publish-consume-spec.js
+    publish-consume-result.js
+  ```
+
