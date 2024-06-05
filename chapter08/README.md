@@ -69,6 +69,16 @@ Or
   ```
 *  **Simulate IoT workloads without requiring too many resources, especially threads**
    Share sockets and threads when not used. NIO stands for non-blocking I/O operations.
+
+  | parameters                 |                                       |
+  |----------------------------|---------------------------------------|
+| --nio-threads 10             | non-blocking IO enabled with pool of 0|
+| --producer-scheduler-threads 10  | by default on thread is used to simulate 50 producers. I declared 2000 producers, so **instead of 40, only 10 threads will be used**. Publishers publish 1 message/s, so we can limit it to 10 to save machine resources              |
+| --consumers-thread-pools 10  | by default pool of threads is equal to the number of consumers. I declared 2000 consumers, so **instead of 2000 threads, only 10 will be used** |
+| --heartbeat-sender-threads 10 | **separate thread is used** for every producer and every consumer **to send heartbeats**. Set limit to reasonable value when using lot of producers and consumers and avoid java.lang.OutOfMemoryError: unable to create new native thread |
+| --publishing-interval 1     | publish message every second    |
+| --producer-random-start-delay 60 | producers randomly start between 1s and 60s |
+
    ```bash
    > runjava com.rabbitmq.perf.PerfTest --time 120 --queue-pattern 'perf-test-%05d'
    --queue-pattern-from 1 --queue-pattern-to 2000 --producers 2000 --consumers 0 --nio-threads 10
