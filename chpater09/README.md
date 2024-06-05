@@ -165,3 +165,62 @@ exchanges.
   | Connections (send, recv bytes)                                      |n/a - feature of RabbitMQ<br/> management plugin | y         | ✔          |
   | Bindings                                                            | y                                           |  y             |          |
   | VHosts (send bytes, recv <br/>bytes, rates)                         |n/a - feature of RabbitMQ<br/> management plugin |  y         | ✔          |  
+
+## Monitoring - memory model
+### Queues - memory
+* **Queues always keep part of messages in memory**   
+RabbitMQ deliver messages to consumers as fast as possible
+* **Queue is an Erlang process**   
+Has its own heap (security & reliability)
+* **Body is stored separately in a separate memory**   
+Body of the message is stored in “Binaries”
+* **Service booting**   
+When RabbitMQ starts, up to 16384 messages
+smaller than 4k are loaded into memory
+
+### Memory test - result
+300 000 messages * 1kB each = 300 MB
+
+ |  Test #1  | **Start**   | **End**    |
+ |-----------|-------------|------------| 
+ |  Binaries |    0        |   322 MB   | 
+ |Memory Queue|  0        |   194 MB   | 
+ |Memory RSS|  256 MB        |   814 MB (↥558 MB)   |  
+ 
+
+ |  Test #2  | **Start**   | **End**    |
+ |-----------|-------------|------------| 
+ |  Binaries |    0        |   321 MB   | 
+ |Memory Queue|  0        |   584 MB   | 
+ |Memory RSS|  254 MB        |   1.4 GB (↥1.1 GB)   |  
+ 
+> We don’t consume 3x more memory, but we store 3x more messages
+
+
+### Memory breakdown
+
+```bash
+> rabbitmq-diagnostics memory_breakdown
+> curl -XGET 'http://127.0.0.1:15672/api/nodes/rabbit1@localhost/memory'
+> curl -XGET 'http://127.0.0.1:15672/api/nodes/rabbit1@localhost?memory=true&binary=true'
+```
+
+### Memory calculation strategy
+* **Legacy (erlang)**   
+Oldest one and fairly inaccurate strategy - underreport the real memory usage.
+* **Allocated**  
+Available from version 3.6.11 (August 2017). It queries Erlang memory allocator for
+details. This strategy is used by default on Windows.
+* **RSS**
+Available from version 3.6.11 (August 2017). OS-specific approach - it queries the kernel
+to find RSS (Resident Set Size) value of the process. This strategy is most precise and used
+by default on unixes
+
+> How memory is calculated:
+> vm_memory_calculation_strategy = legacy/rss/allocated
+
+> Currently RabbitMQ calculates memory usage using both
+> strategies at the same time, so you can compare the
+> difference. Selected strategy tells RabbitMQ which value
+> should be used to determine if the memory usage reaches
+> the watermark or paging to disk is required.
