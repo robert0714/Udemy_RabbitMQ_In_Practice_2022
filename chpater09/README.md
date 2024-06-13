@@ -211,7 +211,7 @@ Oldest one and fairly inaccurate strategy - underreport the real memory usage.
 * **Allocated**  
 Available from version 3.6.11 (August 2017). It queries Erlang memory allocator for
 details. This strategy is used by default on Windows.
-* **RSS**
+* **RSS**   
 Available from version 3.6.11 (August 2017). OS-specific approach - it queries the kernel
 to find RSS (Resident Set Size) value of the process. This strategy is most precise and used
 by default on unixes
@@ -224,3 +224,155 @@ by default on unixes
 > difference. Selected strategy tells RabbitMQ which value
 > should be used to determine if the memory usage reaches
 > the watermark or paging to disk is required.
+
+### Queue Metrics monitoring
+* **Queue size**   
+How many messages wait to be consumed.
+* **Maximum messages age**  
+Similarly to IteratorAge in AWS Kinesis - number of ms message spent in the queue. There is no out-of-the-box solution, measure it manually.
+* **Incoming / Outgoing bytes**  
+Throughput in bytes
+* **Incoming / Outgoing messages**  
+Throughput in number of messages
+
+Messages age (Iterator age) - this need to be implemented manually. There are two suggested approaches
+* **Consumer oriented**  
+Producer to store publication timestamp in message header. Consumer to measure time and emit metric. Known issue: no consuming = no metrics.
+* **Producer oriented**  
+Producer to emit metric about message publication + store publication timestamp in message header. Consumer to close the metric.
+
+### Node statistics monitoring
+* **Connections and Channels**   
+Number of connections and channels, channel leaks and “High channel churn”
+* **Memory usage**   
+Memory breakdown is useful to decide on a possible optimizations
+* **Active Partitions**  
+Expected result is : No active partitions
+* **Active Alarms**
+
+### Monitoring - Other
+Use rabbitmq management plugin, RESTful API , rabbitmqctl or rabbitmq-diagnostics command line tools
+* Use plugin
+  ```bash
+  > rabbitmq-diagnostics memory_breakdown
+  > rabbitmq-diagnostics check_if_node_is_quorum_critical
+  ```
+* Use rabbitmqctl
+  ```bash
+  > rabbitmqctl status
+  > rabbitmqctl list_queues
+  ```
+* RESTful API
+  ```bash
+  curl -s -XGET http://localhost:15672/api/overview
+  curl -s -XGET http://localhost:15672/api/nodes
+  curl -s -XGET http://localhost:15672/api/nodes/<name>
+  curl -s -XGET http://localhost:15672/api/connections
+  curl -s -XGET http://localhost:15672/api/channels
+  curl -s -XGET http://localhost:15672/api/channels/<name>
+  curl -s -XGET http://localhost:15672/api/exchanges
+  curl -s -XGET http://localhost:15672/api/exchanges/<name>
+  curl -s -XGET http://localhost:15672/api/queues
+  curl -s -XGET http://localhost:15672/api/vhosts/
+  ```
+
+### Monitoring - Other
+Tracer is very simple AMQP 0-9-1 protocol analyzer. The easiest way to play with it is to locate
+Tracer between Producer and RabbitMQ.
+1. Stop RabbitMQ
+2. Start RabbitMQ on different port, i.e 5678 by setting:   
+   * in windows
+     ```bash
+     set RABBITMQ_NODE_PORT=5678
+     ```
+   * in linux
+     ```bash
+     export RABBITMQ_NODE_PORT=5678
+     ```     
+3. Start RabbitMQ
+
+4. Run trace
+   ```bash
+   > runtracer 5672 localhost 5678
+   ```
+
+### Monitoring - Tracer  
+```mermaid
+flowchart LR
+    P((Producers))
+    T1[/Tracer/]
+    T2[/Tracer/]
+    Q1[[RabbitMQ]]
+    C1((Consumer))
+
+    P -- :5672 --> T1
+    T1 -- :5678 --> Q1
+    Q1 -- :5678 --> T2
+    T2 -- :5672 --> C1
+
+    class P mermaid-producer
+    class T1 mermaid-tracer
+    class T2 mermaid-tracer
+    class Q1 mermaid-queue
+    class C1 mermaid-consumer
+```
+## Monitoring - Alarms  
+### RabbitMQ Alarms
+RabbitMQ set and respect thresholds. When they are reached, RabbitMQ raises and alarm
+and block connections that publish messages. Alarms can be raised:
+* When memory goes above the safe limit
+* When free disk space drops below the safe limit
+* When number of file and socket descriptors are too high
+* When number of Erlang processes is too high
+
+In all scenarios RabbitMQ temporarily blocks connections. Connection for heartbeat monitoring is also disabled.
+
+There is additional “Flow Control” feature related to connections which publish or consume too fast.
+
+* **File descriptors**  
+Managed by operating system. On Unix use **“ulimit -n”**, on Windows set **ERL_MAX_PORTS** environment variable
+
+* **Socket descriptors**  
+Subset of file descriptors initially set as **80%-90% of file descriptors limit**. RabbitMQ gives priority to the network operations - with growing load more descriptors are being used by sockets and less are available for
+files causing slower disk operations
+
+* **Erlang processes**
+One million by default. Use **RABBITMQ_MAX_NUMBER_OF_PROCESSES** or **RABBITMQ_SERVER_ERL_ARGS** environment variables. Increasing is not a good practice - scale out your cluster.
+
+* **Memory**  
+40% RAM by default. Use **vm_memory_high_watermark** in rabbitmq.conf file.
+
+* **Free disk space**  
+50MB by default. Use **disk_free_limit** in rabbitmq.conf file.
+
+### Alarms - Summary
+* **Never too high, never too low**  
+Take into account type, size and volume of data which is processed by your cluster
+as well hardware limits
+* **Don't increase erlang processes**  
+Default value of 2^20 = 1048576 is already very high. Scale-out your cluster by adding
+more nodes (IoT workload)
+* **Monitor alarms**  
+Better prevent than cure
+
+### RabbitMQ Memory Alarms
+As default RabbitMQ memory threshold is set to 40% of available RAM. More memory can 
+be allocated, just by passing 40% RabbitMQ will start throttle (block connections).
+
+vm_memory_high_watermark.relative = 0.4
+```bash
+> rabbitmqctl set_vm_memory_high_watermark 0.6
+> rabbitmqctl set_vm_memory_high_watermark absolute "4G
+```
+
+### RabbitMQ Disk Alarms
+As default RabbitMQ disk threshold is set to 50MB. When free disk space drops below, an
+alarm will be triggered and RabbitMQ will block connections.
+
+disk_free_limit.absolute = 1GB
+```bash
+> rabbitmqctl set_disk_free_limit 1GB
+```
+
+### RabbitMQ Flow Control
+There is additional “Flow Control” feature related to connections which publish or consume too fast. RabbitMQ uses “Credit Flow Control” algorithm. It’s not configurable, exchanges, queues, connections can be in “flow” state.
